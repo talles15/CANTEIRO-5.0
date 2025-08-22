@@ -788,6 +788,54 @@ O que deseja fazer?`;
     window.onclick = e => { const m = document.getElementById('confirmModal'); if (e.target === m) fecharModal(); };
 
     /* ===================== IMPORTAR / EXPORTAR ===================== */
+<script>
+// ...
+
+function importarDados() {
+  // abre o seletor de arquivo .json
+  document.getElementById('import-input').click();
+}
+
+function processarImportacao(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const dados = JSON.parse(e.target.result);
+
+      if (!dados.configuracao || !dados.amostras) {
+        alert('Arquivo inválido! Esperado { configuracao, amostras }.');
+        return;
+      }
+
+      // confirma sobrescrever se já existir
+      const exists = localStorage.getItem(`canteiro_${dados.configuracao.canteiro}`);
+      if (exists) {
+        const ok = confirm(`Canteiro ${dados.configuracao.canteiro} já existe. Sobrescrever?`);
+        if (!ok) return;
+      }
+
+      configuracao = dados.configuracao;
+      amostras = dados.amostras;
+
+      salvarDados();
+      gerarMapa();
+      mostrarPainel('map-panel');
+      alert(`Canteiro ${configuracao.canteiro} importado! ${amostras.length} amostras carregadas.`);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao ler o arquivo. Verifique se é um JSON válido.');
+    } finally {
+      event.target.value = ''; // limpa o input para permitir reimportar
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ...
+</script>
     function exportarMapa() {
       const dados = { configuracao, amostras, dataExportacao: new Date().toISOString(), versao: '2.1' };
       const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
@@ -800,137 +848,164 @@ O que deseja fazer?`;
       alert('Mapa exportado em JSON!');
     }
 
-    async function exportarPDF(evt) {
-      try {
-        if (typeof window.jspdf === 'undefined') return alert('Biblioteca PDF não carregada.');
-        const btn = evt?.target;
-        if (btn) { btn.disabled = true; const t = btn.textContent; btn.dataset._t = t; btn.textContent = '⏳ Gerando PDF...'; }
-        await new Promise(r => setTimeout(r, 50));
+   async function exportarPDF(evt) {
+  try {
+    if (typeof window.jspdf === 'undefined') return alert('Biblioteca PDF não carregada.');
 
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
+    const btn = evt?.target;
+    if (btn) { btn.disabled = true; const t = btn.textContent; btn.dataset._t = t; btn.textContent = '⏳ Gerando PDF...'; }
+    await new Promise(r => setTimeout(r, 30));
 
-        const margem = 20;
-        const largura = 210 - margem * 2;
-        let y = margem;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
 
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
-        pdf.text(`Mapa do Canteiro ${configuracao.canteiro || ''}`, margem, y); y += 12;
+    // Layout
+    const MARGEM = 20;
+    const PADDING = 2.5;       // padding interno da célula
+    const LARGURA = 210 - MARGEM * 2;
+    const COL_W = LARGURA / 3; // 3 colunas (posição | esquerdo | direito)
+    const HEADER_H = 10;
+    const MIN_ROW_H = 12;      // altura mínima de cada linha (pode crescer)
+    const LINE_H = 4;          // altura de cada linha de texto
+    let y = MARGEM;
 
-        const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
-        const tipoTesteDisplay = !tiposUnicos.length
-          ? (configuracao.tipoTeste || 'N/A')
-          : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
+    // ---------- Cabeçalho ----------
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+    pdf.text(`Mapa do Canteiro ${configuracao.canteiro || ''}`, MARGEM, y); y += 12;
 
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
-        pdf.text(`Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'}`, margem, y);
-        pdf.text(`Teste: ${tipoTesteDisplay}`, margem + 60, y);
-        pdf.text(`Amostras: ${amostras.length}`, margem + 130, y); y += 8;
-        pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margem, y); y += 10;
+    // Resumo do teste (único / múltiplos)
+    const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
+    const tipoTesteDisplay = !tiposUnicos.length
+      ? (configuracao.tipoTeste || 'N/A')
+      : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
 
-        const colW = largura / 3;
-        const rowH = 10;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
+    pdf.text(`Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'}`, MARGEM, y);
+    pdf.text(`Teste: ${tipoTesteDisplay}`, MARGEM + 60, y);
+    pdf.text(`Amostras: ${amostras.length}`, MARGEM + 130, y); y += 8;
+    pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, MARGEM, y); y += 8;
 
-        pdf.setFillColor(240,240,240);
-        pdf.rect(margem, y, colW, rowH, 'F');
-        pdf.rect(margem+colW, y, colW, rowH, 'F');
-        pdf.rect(margem+2*colW, y, colW, rowH, 'F');
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
-        pdf.text('Posição', margem+5, y+7);
-        pdf.text('Lado Esquerdo', margem+colW+5, y+7);
-        pdf.text('Lado Direito', margem+2*colW+5, y+7);
-        y += rowH;
+    // ---------- Cabeçalho da tabela ----------
+    drawTableHeader(pdf, MARGEM, y, COL_W, HEADER_H);
+    y += HEADER_H;
 
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-        const esq = amostras.filter(a => a.lado === 'esquerdo').sort((a,b)=>a.posicao-b.posicao);
-        const dir = amostras.filter(a => a.lado === 'direito').sort((a,b)=>a.posicao-b.posicao);
-        const maxPos = Math.max(esq.length, dir.length, 45);
+    // ---------- Dados ----------
+    pdf.setFontSize(9);
+    const esq = amostras.filter(a => a.lado === 'esquerdo').sort((a,b)=>a.posicao-b.posicao);
+    const dir = amostras.filter(a => a.lado === 'direito').sort((a,b)=>a.posicao-b.posicao);
+    const maxPos = Math.max(esq.length, dir.length, 45);
 
-        for (let i=0;i<maxPos;i++) {
-          if (y > 250) {
-            pdf.addPage(); y = margem;
-            pdf.setFillColor(240,240,240);
-            pdf.rect(margem, y, colW, rowH, 'F');
-            pdf.rect(margem+colW, y, colW, rowH, 'F');
-            pdf.rect(margem+2*colW, y, colW, rowH, 'F');
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
-            pdf.text('Posição', margem+5, y+7);
-            pdf.text('Lado Esquerdo', margem+colW+5, y+7);
-            pdf.text('Lado Direito', margem+2*colW+5, y+7);
-            y += rowH;
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-          }
-
-          const pos = i+1;
-          const aE = esq.find(a => a.posicao === pos);
-          const aD = dir.find(a => a.posicao === pos);
-
-          pdf.rect(margem, y, colW, rowH*2);
-          pdf.rect(margem+colW, y, colW, rowH*2);
-          pdf.rect(margem+2*colW, y, colW, rowH*2);
-
-          pdf.setFont('helvetica', 'bold'); pdf.text(String(pos), margem+5, y+6);
-          pdf.setFont('helvetica', 'normal');
-
-          const drawSide = (a, x) => {
-            if (!a) { pdf.setTextColor(128); pdf.text('Vazio', x+5, y+10); pdf.setTextColor(0); return; }
-            const dataTs = a.timestamp ? new Date(a.timestamp).toLocaleDateString('pt-BR') : '—';
-            const dataPl = a.dataPlantio ? new Date(a.dataPlantio).toLocaleDateString('pt-BR') : null;
-            pdf.setFont('helvetica','bold'); pdf.text(a.codigo, x+5, y+6);
-            pdf.setFont('helvetica','normal'); pdf.setFontSize(7);
-            const info = `${a.tipoTeste || configuracao.tipoTeste || 'N/A'} | ${a.tipoRemessa || 'N/A'} | ${dataTs}${dataPl ? ' | 🌱 '+dataPl : ''}${a.manual ? ' | Manual' : ''}`;
-            pdf.text(info, x+5, y+12);
-            pdf.setFontSize(9);
-          };
-          drawSide(aE, margem+colW);
-          drawSide(aD, margem+2*colW);
-          y += rowH*2;
-        }
-
-        const nome = `Mapa_Canteiro_${(configuracao.canteiro || 'X')}_${(configuracao.data || '').replace(/-/g,'')}.pdf`;
-        pdf.save(nome);
-
-        if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
-        alert('PDF gerado com sucesso!');
-      } catch (e) {
-        console.error(e);
-        const btn = evt?.target;
-        if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
-        alert('Erro ao gerar PDF: ' + e.message);
+    for (let i = 0; i < maxPos; i++) {
+      // Quebra de página
+      const ROW_SPACE = 60; // buffer para caber pelo menos mais uma linha com conforto
+      if (y > 297 - MARGEM - ROW_SPACE) { // 297mm = altura A4
+        pdf.addPage();
+        y = MARGEM;
+        drawTableHeader(pdf, MARGEM, y, COL_W, HEADER_H);
+        y += HEADER_H;
       }
+
+      const pos = i + 1;
+      const aE = esq.find(a => a.posicao === pos);
+      const aD = dir.find(a => a.posicao === pos);
+
+      // Conteúdos (quebra automática)
+      const posText = [String(pos)];
+      const leftText = buildCellLines(pdf, aE, COL_W - 2 * PADDING);
+      const rightText = buildCellLines(pdf, aD, COL_W - 2 * PADDING);
+
+      // Altura da linha (depende do maior bloco de texto)
+      const linesLeft = leftText.length;
+      const linesRight = rightText.length;
+      const neededH = Math.max(MIN_ROW_H, (Math.max(linesLeft, linesRight) * LINE_H) + 2 * PADDING);
+
+      // Bordas das células
+      pdf.rect(MARGEM,            y, COL_W, neededH);
+      pdf.rect(MARGEM + COL_W,    y, COL_W, neededH);
+      pdf.rect(MARGEM + 2*COL_W,  y, COL_W, neededH);
+
+      // Posição (negrito)
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(posText[0], MARGEM + PADDING, y + 4.5);
+      pdf.setFont('helvetica', 'normal');
+
+      // Lado esquerdo
+      let cursorY = y + PADDING + 3.5;  // pequeno ajuste ótico
+      // primeira linha (código) em negrito, se houver
+      if (aE && aE.codigo) {
+        pdf.setFont('helvetica', 'bold');
+        const first = leftText.shift(); // primeira linha é o código
+        pdf.text(first, MARGEM + COL_W + PADDING, cursorY);
+        pdf.setFont('helvetica', 'normal');
+        cursorY += LINE_H;
+      }
+      leftText.forEach(line => { pdf.text(line, MARGEM + COL_W + PADDING, cursorY); cursorY += LINE_H; });
+
+      // Lado direito
+      cursorY = y + PADDING + 3.5;
+      if (aD && aD.codigo) {
+        pdf.setFont('helvetica', 'bold');
+        const first = rightText.shift();
+        pdf.text(first, MARGEM + 2*COL_W + PADDING, cursorY);
+        pdf.setFont('helvetica', 'normal');
+        cursorY += LINE_H;
+      }
+      rightText.forEach(line => { pdf.text(line, MARGEM + 2*COL_W + PADDING, cursorY); cursorY += LINE_H; });
+
+      y += neededH;
     }
 
-    function criarDadosPDF() {
-      return { configuracao, amostras, dataGeracao: new Date().toISOString() };
-    }
+    const nome = `Mapa_Canteiro_${(configuracao.canteiro || 'X')}_${(configuracao.data || '').replace(/-/g,'')}.pdf`;
+    pdf.save(nome);
 
-    function importarDados() {
-      document.getElementById('import-input').click();
-    }
+    if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
+    alert('PDF gerado com sucesso!');
+  } catch (e) {
+    console.error(e);
+    const btn = evt?.target;
+    if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
+    alert('Erro ao gerar PDF: ' + e.message);
+  }
+}
+function drawTableHeader(pdf, x, y, colW, h) {
+  pdf.setFillColor(240, 240, 240);
+  pdf.rect(x,           y, colW, h, 'F');
+  pdf.rect(x + colW,    y, colW, h, 'F');
+  pdf.rect(x + 2*colW,  y, colW, h, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+  pdf.text('Posição',       x + 5,            y + 7);
+  pdf.text('Lado Esquerdo', x + colW + 5,     y + 7);
+  pdf.text('Lado Direito',  x + 2*colW + 5,   y + 7);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+}
 
-    function processarImportacao(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          const dados = JSON.parse(e.target.result);
-          if (!dados.configuracao || !dados.amostras) return alert('Arquivo inválido.');
-          const existe = localStorage.getItem(`canteiro_${dados.configuracao.canteiro}`);
-          if (existe && !confirm(`Canteiro ${dados.configuracao.canteiro} já existe. Sobrescrever?`)) return;
-          configuracao = dados.configuracao;
-          amostras = dados.amostras;
-          salvarDados();
-          carregarCanteirosSalvos();
-          alert(`Canteiro ${configuracao.canteiro} importado.\n${amostras.length} amostra(s) carregada(s).`);
-        } catch (err) {
-          console.error(err);
-          alert('Erro ao processar arquivo. Verifique o formato.');
-        }
-      };
-      reader.readAsText(file);
-      event.target.value = '';
-    }
+/**
+ * Monta as linhas da célula com quebra automática.
+ * A primeira linha será o CÓDIGO (quando existir) — usada em negrito na hora de desenhar.
+ */
+function buildCellLines(pdf, amostra, maxWidth) {
+  if (!amostra) return ['Vazio'];
+  const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
+  const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : null;
+
+  // 1ª linha: código (em negrito na hora de desenhar)
+  const lines = [String(amostra.codigo || '')];
+
+  // 2ª+ linhas: info detalhada, SEM emoji (troca 🌱 por 'Plantio:')
+  const info = [
+    amostra.tipoTeste || 'N/A',
+    amostra.tipoRemessa || 'N/A',
+    dataTs
+  ].join(' | ');
+
+  const plantio = dataPl ? `Plantio: ${dataPl}` : '';
+  const manual  = amostra.manual ? 'Origem: Manual' : '';
+
+  const details = [info, plantio, manual].filter(Boolean).join(' • ');
+  const wrapped = pdf.splitTextToSize(details, maxWidth); // aqui acontece a quebra automática
+
+  return [lines[0], ...wrapped];
+}
   </script>
 </body>
 </html>
