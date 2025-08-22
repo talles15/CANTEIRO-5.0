@@ -225,7 +225,7 @@
           </small>
         </div>
 
-        <!-- NOVO CAMPO: Data de Plantio da Amostra -->
+        <!-- Data de Plantio da Amostra -->
         <div class="form-group">
           <label for="manual-data-plantio">Data de Plantio da Amostra</label>
           <input type="date" id="manual-data-plantio" />
@@ -576,11 +576,10 @@
       document.getElementById('preview-area').style.display = 'block';
     }
 
-    /* ===================== MAPA (OTIMIZADO) ===================== */
+    /* ===================== MAPA ===================== */
     function gerarMapa() {
       mostrarPainel('map-panel');
 
-      // Cabeçalho com resumo inteligente do tipo de teste
       const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
       const tipoTesteDisplay = !tiposUnicos.length
         ? (configuracao.tipoTeste || 'N/A')
@@ -599,7 +598,6 @@
       const tbody = document.getElementById('mapa-tbody');
       tbody.innerHTML = '';
 
-      // Função auxiliar para criar célula
       const criarCelula = (amostra, lado, posicao) => {
         const cell = document.createElement('td');
         cell.className = 'sample-cell';
@@ -663,7 +661,12 @@ O que deseja fazer?`;
     }
 
     function editarPosicaoAmostra(amostra) {
-      const nova = prompt(`✏️ EDITAR POSIÇÃO\n\nAmostra: ${amostra.codigo}\nPosição atual: ${amostra.posicao} (${amostra.lado})\n\n➡️ Digite a nova posição:`, amostra.posicao);
+      const nova = prompt(`✏️ EDITAR POSIÇÃO
+
+Amostra: ${amostra.codigo}
+Posição atual: ${amostra.posicao} (${amostra.lado})
+
+➡️ Digite a nova posição:`, amostra.posicao);
       if (!nova) return;
       const pos = parseInt(nova, 10);
       if (isNaN(pos) || pos < 1) return alert('Posição inválida.');
@@ -680,7 +683,12 @@ O que deseja fazer?`;
     }
 
     function limparPosicaoAmostra(amostra) {
-      const ok = confirm(`🧹 LIMPAR POSIÇÃO\n\nAmostra: ${amostra.codigo}\nPosição: ${amostra.posicao} (${amostra.lado})\n\nRemover da posição?`);
+      const ok = confirm(`🧹 LIMPAR POSIÇÃO
+
+Amostra: ${amostra.codigo}
+Posição: ${amostra.posicao} (${amostra.lado})
+
+Remover da posição?`);
       if (!ok) return;
       amostras = amostras.filter(a => !(a.codigo === amostra.codigo && a.lado === amostra.lado && a.tipoTeste === amostra.tipoTeste));
       salvarDados();
@@ -689,7 +697,11 @@ O que deseja fazer?`;
     }
 
     function removerAmostra(amostra) {
-      const ok = confirm(`🗑️ REMOVER AMOSTRA\n\nAmostra: ${amostra.codigo}\nRemover completamente do canteiro?`);
+      const ok = confirm(`🗑️ REMOVER AMOSTRA
+
+Amostra: ${amostra.codigo}
+
+Remover completamente do canteiro?`);
       if (!ok) return;
       amostras = amostras.filter(a => !(a.codigo === amostra.codigo && a.tipoTeste === amostra.tipoTeste));
       salvarDados();
@@ -697,31 +709,47 @@ O que deseja fazer?`;
       alert('✅ Amostra removida.');
     }
 
-    // Também pergunta DATA DE PLANTIO ao adicionar clicando numa célula vazia
+    // Adicionar clicando na célula vazia (pergunta Data de Plantio)
     function adicionarAmostraNaPosicao(lado, posicao) {
-      const codigo = prompt(`Adicionar amostra na posição ${posicao} (${lado})\n\nCódigo da amostra:`);
+      const codigo = prompt(`Adicionar amostra na posição ${posicao} (${lado})
+
+Código da amostra:`);
       if (!codigo || !codigo.trim()) return;
       const codigoLimpo = codigo.trim();
 
-      const tipoTesteOpt = prompt(`Tipo de teste para a amostra ${codigoLimpo}:\n1 - GA\n2 - EA48\n3 - EA72\n\nDigite o número da opção:`);
+      const tipoTesteOpt = prompt(`Tipo de teste para a amostra ${codigoLimpo}:
+1 - GA
+2 - EA48
+3 - EA72
+
+Digite o número da opção:`);
       const tipoTeste = ({ '1': 'GA', '2': 'EA48', '3': 'EA72' }[tipoTesteOpt]) || (configuracao.tipoTeste || 'GA');
 
       if (amostras.some(a => a.codigo === codigoLimpo && a.tipoTeste === tipoTeste)) {
         return alert(`Amostra ${codigoLimpo} já existe para ${tipoTeste}.`);
       }
 
-      const tipoRemessaOpt = prompt(`Origem da amostra ${codigoLimpo}:\n1 - Lote\n2 - TSI\n3 - Carregamento\n4 - Teste\n5 - Reclamação\n6 - Entrada de Semente\n\nDigite o número da opção:`);
+      const tipoRemessaOpt = prompt(`Origem da amostra ${codigoLimpo}:
+1 - Lote
+2 - TSI
+3 - Carregamento
+4 - Teste
+5 - Reclamação
+6 - Entrada de Semente
+
+Digite o número da opção:`);
       const tipoRemessa = ({
         '1': 'Lote', '2': 'TSI', '3': 'Carregamento', '4': 'Teste', '5': 'Reclamação', '6': 'Entrada de Semente'
       }[tipoRemessaOpt]) || 'Teste';
 
-      // NOVO: Data de plantio solicitada (ou usa a do canteiro)
-      const dataPl = prompt(`🌱 Data de plantio (AAAA-MM-DD)\n\nDeixe vazio para usar a data do canteiro (${configuracao.data || 'não definida'}):`) || configuracao.data || null;
+      const dataPl = prompt(`🌱 Data de plantio (AAAA-MM-DD)
 
-      // Se já houver amostra na posição, substitui após confirmar
+Deixe vazio para usar a data do canteiro (${configuracao.data || 'não definida'}):`) || configuracao.data || null;
+
       const conflito = amostras.find(a => a.lado === lado && a.posicao === posicao);
       if (conflito) {
-        const ok = confirm(`⚠️ Posição ${posicao} já ocupada por ${conflito.codigo} (${conflito.tipoTeste || 'N/A'}).\nSubstituir?`);
+        const ok = confirm(`⚠️ Posição ${posicao} já ocupada por ${conflito.codigo} (${conflito.tipoTeste || 'N/A'}).
+Substituir?`);
         if (!ok) return;
         amostras = amostras.filter(a => !(a.lado === lado && a.posicao === posicao));
       }
@@ -741,12 +769,19 @@ O que deseja fazer?`;
       amostras.push(amostra);
       salvarDados();
       gerarMapa();
-      alert(`✅ Amostra adicionada!\nCódigo: ${codigoLimpo}\nTeste: ${tipoTeste}\nOrigem: ${tipoRemessa}\nPosição: ${posicao} (${lado})\n🌱 Data Plantio: ${dataPl || '—'}`);
+      alert(`✅ Amostra adicionada!
+Código: ${codigoLimpo}
+Teste: ${tipoTeste}
+Origem: ${tipoRemessa}
+Posição: ${posicao} (${lado})
+🌱 Data Plantio: ${dataPl || '—'}`);
     }
 
     function limparCanteiro() {
       mostrarModal('Limpar Canteiro',
-        `Deseja realmente limpar todas as amostras do canteiro ${configuracao.canteiro || ''}?\n\nEsta ação não pode ser desfeita!`,
+        `Deseja realmente limpar todas as amostras do canteiro ${configuracao.canteiro || ''}?
+
+Esta ação não pode ser desfeita!`,
         () => { amostras = []; salvarDados(); gerarMapa(); alert('Canteiro limpo com sucesso!'); fecharModal(); }
       );
     }
@@ -772,7 +807,9 @@ O que deseja fazer?`;
 
     function confirmarExclusao(canteiro) {
       mostrarModal('Excluir Canteiro',
-        `Deseja realmente excluir o canteiro ${canteiro}?\n\nTodos os dados serão perdidos!`,
+        `Deseja realmente excluir o canteiro ${canteiro}?
+
+Todos os dados serão perdidos!`,
         () => { localStorage.removeItem(`canteiro_${canteiro}`); carregarCanteirosSalvos(); alert('Canteiro excluído.'); fecharModal(); }
       );
     }
@@ -788,54 +825,48 @@ O que deseja fazer?`;
     window.onclick = e => { const m = document.getElementById('confirmModal'); if (e.target === m) fecharModal(); };
 
     /* ===================== IMPORTAR / EXPORTAR ===================== */
-<script>
-// ...
-
-function importarDados() {
-  // abre o seletor de arquivo .json
-  document.getElementById('import-input').click();
-}
-
-function processarImportacao(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const dados = JSON.parse(e.target.result);
-
-      if (!dados.configuracao || !dados.amostras) {
-        alert('Arquivo inválido! Esperado { configuracao, amostras }.');
-        return;
-      }
-
-      // confirma sobrescrever se já existir
-      const exists = localStorage.getItem(`canteiro_${dados.configuracao.canteiro}`);
-      if (exists) {
-        const ok = confirm(`Canteiro ${dados.configuracao.canteiro} já existe. Sobrescrever?`);
-        if (!ok) return;
-      }
-
-      configuracao = dados.configuracao;
-      amostras = dados.amostras;
-
-      salvarDados();
-      gerarMapa();
-      mostrarPainel('map-panel');
-      alert(`Canteiro ${configuracao.canteiro} importado! ${amostras.length} amostras carregadas.`);
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao ler o arquivo. Verifique se é um JSON válido.');
-    } finally {
-      event.target.value = ''; // limpa o input para permitir reimportar
+    function importarDados() {
+      document.getElementById('import-input').click();
     }
-  };
-  reader.readAsText(file);
-}
 
-// ...
-</script>
+    function processarImportacao(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const dados = JSON.parse(e.target.result);
+
+          if (!dados.configuracao || !dados.amostras) {
+            alert('Arquivo inválido! Esperado { configuracao, amostras }.');
+            return;
+          }
+
+          const exists = localStorage.getItem(`canteiro_${dados.configuracao.canteiro}`);
+          if (exists) {
+            const ok = confirm(`Canteiro ${dados.configuracao.canteiro} já existe. Sobrescrever?`);
+            if (!ok) return;
+          }
+
+          configuracao = dados.configuracao;
+          amostras = dados.amostras;
+          canteiroAtual = configuracao.canteiro;
+
+          salvarDados();
+          gerarMapa();
+          mostrarPainel('map-panel');
+          alert(`Canteiro ${configuracao.canteiro} importado! ${amostras.length} amostras carregadas.`);
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao ler o arquivo. Verifique se é um JSON válido.');
+        } finally {
+          event.target.value = ''; // permite reimportar o mesmo arquivo depois
+        }
+      };
+      reader.readAsText(file);
+    }
+
     function exportarMapa() {
       const dados = { configuracao, amostras, dataExportacao: new Date().toISOString(), versao: '2.1' };
       const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
@@ -848,164 +879,147 @@ function processarImportacao(event) {
       alert('Mapa exportado em JSON!');
     }
 
-   async function exportarPDF(evt) {
-  try {
-    if (typeof window.jspdf === 'undefined') return alert('Biblioteca PDF não carregada.');
+    /* ===================== PDF (autowrap) ===================== */
+    async function exportarPDF(evt) {
+      try {
+        if (typeof window.jspdf === 'undefined') return alert('Biblioteca PDF não carregada.');
 
-    const btn = evt?.target;
-    if (btn) { btn.disabled = true; const t = btn.textContent; btn.dataset._t = t; btn.textContent = '⏳ Gerando PDF...'; }
-    await new Promise(r => setTimeout(r, 30));
+        const btn = evt?.target;
+        if (btn) { btn.disabled = true; const t = btn.textContent; btn.dataset._t = t; btn.textContent = '⏳ Gerando PDF...'; }
+        await new Promise(r => setTimeout(r, 30));
 
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
 
-    // Layout
-    const MARGEM = 20;
-    const PADDING = 2.5;       // padding interno da célula
-    const LARGURA = 210 - MARGEM * 2;
-    const COL_W = LARGURA / 3; // 3 colunas (posição | esquerdo | direito)
-    const HEADER_H = 10;
-    const MIN_ROW_H = 12;      // altura mínima de cada linha (pode crescer)
-    const LINE_H = 4;          // altura de cada linha de texto
-    let y = MARGEM;
+        const MARGEM = 20;
+        const PADDING = 2.5;
+        const LARGURA = 210 - MARGEM * 2;
+        const COL_W = LARGURA / 3;
+        const HEADER_H = 10;
+        const MIN_ROW_H = 12;
+        const LINE_H = 4;
+        let y = MARGEM;
 
-    // ---------- Cabeçalho ----------
-    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
-    pdf.text(`Mapa do Canteiro ${configuracao.canteiro || ''}`, MARGEM, y); y += 12;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+        pdf.text(`Mapa do Canteiro ${configuracao.canteiro || ''}`, MARGEM, y); y += 12;
 
-    // Resumo do teste (único / múltiplos)
-    const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
-    const tipoTesteDisplay = !tiposUnicos.length
-      ? (configuracao.tipoTeste || 'N/A')
-      : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
+        const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
+        const tipoTesteDisplay = !tiposUnicos.length
+          ? (configuracao.tipoTeste || 'N/A')
+          : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
 
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
-    pdf.text(`Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'}`, MARGEM, y);
-    pdf.text(`Teste: ${tipoTesteDisplay}`, MARGEM + 60, y);
-    pdf.text(`Amostras: ${amostras.length}`, MARGEM + 130, y); y += 8;
-    pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, MARGEM, y); y += 8;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
+        pdf.text(`Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'}`, MARGEM, y);
+        pdf.text(`Teste: ${tipoTesteDisplay}`, MARGEM + 60, y);
+        pdf.text(`Amostras: ${amostras.length}`, MARGEM + 130, y); y += 8;
+        pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, MARGEM, y); y += 8;
 
-    // ---------- Cabeçalho da tabela ----------
-    drawTableHeader(pdf, MARGEM, y, COL_W, HEADER_H);
-    y += HEADER_H;
-
-    // ---------- Dados ----------
-    pdf.setFontSize(9);
-    const esq = amostras.filter(a => a.lado === 'esquerdo').sort((a,b)=>a.posicao-b.posicao);
-    const dir = amostras.filter(a => a.lado === 'direito').sort((a,b)=>a.posicao-b.posicao);
-    const maxPos = Math.max(esq.length, dir.length, 45);
-
-    for (let i = 0; i < maxPos; i++) {
-      // Quebra de página
-      const ROW_SPACE = 60; // buffer para caber pelo menos mais uma linha com conforto
-      if (y > 297 - MARGEM - ROW_SPACE) { // 297mm = altura A4
-        pdf.addPage();
-        y = MARGEM;
         drawTableHeader(pdf, MARGEM, y, COL_W, HEADER_H);
         y += HEADER_H;
+
+        pdf.setFontSize(9);
+        const esq = amostras.filter(a => a.lado === 'esquerdo').sort((a,b)=>a.posicao-b.posicao);
+        const dir = amostras.filter(a => a.lado === 'direito').sort((a,b)=>a.posicao-b.posicao);
+        const maxPos = Math.max(esq.length, dir.length, 45);
+
+        for (let i = 0; i < maxPos; i++) {
+          const ROW_SPACE = 60;
+          if (y > 297 - MARGEM - ROW_SPACE) {
+            pdf.addPage();
+            y = MARGEM;
+            drawTableHeader(pdf, MARGEM, y, COL_W, HEADER_H);
+            y += HEADER_H;
+          }
+
+          const pos = i + 1;
+          const aE = esq.find(a => a.posicao === pos);
+          const aD = dir.find(a => a.posicao === pos);
+
+          const leftText = buildCellLines(pdf, aE, COL_W - 2 * PADDING);
+          const rightText = buildCellLines(pdf, aD, COL_W - 2 * PADDING);
+
+          const linesLeft = leftText.length;
+          const linesRight = rightText.length;
+          const neededH = Math.max(MIN_ROW_H, (Math.max(linesLeft, linesRight) * LINE_H) + 2 * PADDING);
+
+          pdf.rect(MARGEM,            y, COL_W, neededH);
+          pdf.rect(MARGEM + COL_W,    y, COL_W, neededH);
+          pdf.rect(MARGEM + 2*COL_W,  y, COL_W, neededH);
+
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(String(pos), MARGEM + PADDING, y + 4.5);
+          pdf.setFont('helvetica', 'normal');
+
+          let cursorY = y + PADDING + 3.5;
+          if (aE && aE.codigo) {
+            pdf.setFont('helvetica', 'bold');
+            const first = leftText.shift();
+            pdf.text(first, MARGEM + COL_W + PADDING, cursorY);
+            pdf.setFont('helvetica', 'normal');
+            cursorY += LINE_H;
+          }
+          leftText.forEach(line => { pdf.text(line, MARGEM + COL_W + PADDING, cursorY); cursorY += LINE_H; });
+
+          cursorY = y + PADDING + 3.5;
+          if (aD && aD.codigo) {
+            pdf.setFont('helvetica', 'bold');
+            const first = rightText.shift();
+            pdf.text(first, MARGEM + 2*COL_W + PADDING, cursorY);
+            pdf.setFont('helvetica', 'normal');
+            cursorY += LINE_H;
+          }
+          rightText.forEach(line => { pdf.text(line, MARGEM + 2*COL_W + PADDING, cursorY); cursorY += LINE_H; });
+
+          y += neededH;
+        }
+
+        const nome = `Mapa_Canteiro_${(configuracao.canteiro || 'X')}_${(configuracao.data || '').replace(/-/g,'')}.pdf`;
+        pdf.save(nome);
+
+        if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
+        alert('PDF gerado com sucesso!');
+      } catch (e) {
+        console.error(e);
+        const btn = evt?.target;
+        if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
+        alert('Erro ao gerar PDF: ' + e.message);
       }
-
-      const pos = i + 1;
-      const aE = esq.find(a => a.posicao === pos);
-      const aD = dir.find(a => a.posicao === pos);
-
-      // Conteúdos (quebra automática)
-      const posText = [String(pos)];
-      const leftText = buildCellLines(pdf, aE, COL_W - 2 * PADDING);
-      const rightText = buildCellLines(pdf, aD, COL_W - 2 * PADDING);
-
-      // Altura da linha (depende do maior bloco de texto)
-      const linesLeft = leftText.length;
-      const linesRight = rightText.length;
-      const neededH = Math.max(MIN_ROW_H, (Math.max(linesLeft, linesRight) * LINE_H) + 2 * PADDING);
-
-      // Bordas das células
-      pdf.rect(MARGEM,            y, COL_W, neededH);
-      pdf.rect(MARGEM + COL_W,    y, COL_W, neededH);
-      pdf.rect(MARGEM + 2*COL_W,  y, COL_W, neededH);
-
-      // Posição (negrito)
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(posText[0], MARGEM + PADDING, y + 4.5);
-      pdf.setFont('helvetica', 'normal');
-
-      // Lado esquerdo
-      let cursorY = y + PADDING + 3.5;  // pequeno ajuste ótico
-      // primeira linha (código) em negrito, se houver
-      if (aE && aE.codigo) {
-        pdf.setFont('helvetica', 'bold');
-        const first = leftText.shift(); // primeira linha é o código
-        pdf.text(first, MARGEM + COL_W + PADDING, cursorY);
-        pdf.setFont('helvetica', 'normal');
-        cursorY += LINE_H;
-      }
-      leftText.forEach(line => { pdf.text(line, MARGEM + COL_W + PADDING, cursorY); cursorY += LINE_H; });
-
-      // Lado direito
-      cursorY = y + PADDING + 3.5;
-      if (aD && aD.codigo) {
-        pdf.setFont('helvetica', 'bold');
-        const first = rightText.shift();
-        pdf.text(first, MARGEM + 2*COL_W + PADDING, cursorY);
-        pdf.setFont('helvetica', 'normal');
-        cursorY += LINE_H;
-      }
-      rightText.forEach(line => { pdf.text(line, MARGEM + 2*COL_W + PADDING, cursorY); cursorY += LINE_H; });
-
-      y += neededH;
     }
 
-    const nome = `Mapa_Canteiro_${(configuracao.canteiro || 'X')}_${(configuracao.data || '').replace(/-/g,'')}.pdf`;
-    pdf.save(nome);
+    function drawTableHeader(pdf, x, y, colW, h) {
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(x,           y, colW, h, 'F');
+      pdf.rect(x + colW,    y, colW, h, 'F');
+      pdf.rect(x + 2*colW,  y, colW, h, 'F');
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+      pdf.text('Posição',       x + 5,            y + 7);
+      pdf.text('Lado Esquerdo', x + colW + 5,     y + 7);
+      pdf.text('Lado Direito',  x + 2*colW + 5,   y + 7);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+    }
 
-    if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
-    alert('PDF gerado com sucesso!');
-  } catch (e) {
-    console.error(e);
-    const btn = evt?.target;
-    if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
-    alert('Erro ao gerar PDF: ' + e.message);
-  }
-}
-function drawTableHeader(pdf, x, y, colW, h) {
-  pdf.setFillColor(240, 240, 240);
-  pdf.rect(x,           y, colW, h, 'F');
-  pdf.rect(x + colW,    y, colW, h, 'F');
-  pdf.rect(x + 2*colW,  y, colW, h, 'F');
-  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
-  pdf.text('Posição',       x + 5,            y + 7);
-  pdf.text('Lado Esquerdo', x + colW + 5,     y + 7);
-  pdf.text('Lado Direito',  x + 2*colW + 5,   y + 7);
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-}
+    // Linhas com quebra automática para cada célula (primeira é o código)
+    function buildCellLines(pdf, amostra, maxWidth) {
+      if (!amostra) return ['Vazio'];
+      const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
+      const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : null;
 
-/**
- * Monta as linhas da célula com quebra automática.
- * A primeira linha será o CÓDIGO (quando existir) — usada em negrito na hora de desenhar.
- */
-function buildCellLines(pdf, amostra, maxWidth) {
-  if (!amostra) return ['Vazio'];
-  const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
-  const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : null;
+      const lines = [String(amostra.codigo || '')];
 
-  // 1ª linha: código (em negrito na hora de desenhar)
-  const lines = [String(amostra.codigo || '')];
+      const info = [
+        amostra.tipoTeste || 'N/A',
+        amostra.tipoRemessa || 'N/A',
+        dataTs
+      ].join(' | ');
 
-  // 2ª+ linhas: info detalhada, SEM emoji (troca 🌱 por 'Plantio:')
-  const info = [
-    amostra.tipoTeste || 'N/A',
-    amostra.tipoRemessa || 'N/A',
-    dataTs
-  ].join(' | ');
+      const plantio = dataPl ? `Plantio: ${dataPl}` : '';
+      const manual  = amostra.manual ? 'Origem: Manual' : '';
 
-  const plantio = dataPl ? `Plantio: ${dataPl}` : '';
-  const manual  = amostra.manual ? 'Origem: Manual' : '';
+      const details = [info, plantio, manual].filter(Boolean).join(' • ');
+      const wrapped = pdf.splitTextToSize(details, maxWidth);
 
-  const details = [info, plantio, manual].filter(Boolean).join(' • ');
-  const wrapped = pdf.splitTextToSize(details, maxWidth); // aqui acontece a quebra automática
-
-  return [lines[0], ...wrapped];
-}
+      return [lines[0], ...wrapped];
+    }
   </script>
 </body>
 </html>
