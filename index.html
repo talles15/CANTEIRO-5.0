@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mapeamento de Canteiros</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='24' fill='%23228B22'/%3E%3Cpath d='M32 84c18 0 30-14 32-32 2 18 14 32 32 32-18 2-30 14-32 32-2-18-14-30-32-32Z' fill='%23fff'/%3E%3C/svg%3E" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+    .container{max-width:1200px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 40px rgba(0,0,0,.1);overflow:hidden}
+    .header{background:linear-gradient(45deg,#2E8B57,#228B22);color:#fff;padding:30px;text-align:center}
+    .header h1{font-size:2.2rem;margin-bottom:8px;text-shadow:2px 2px 4px rgba(0,0,0,.25)}
+    .main-menu{padding:30px;background:#f8f9fa;border-bottom:2px solid #e9ecef}
+    .menu-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:16px}
+    .menu-btn{padding:18px;border:none;border-radius:12px;cursor:pointer;font-size:16px;font-weight:600;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .menu-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
+    .menu-btn-primary{background:linear-gradient(45deg,#2E8B57,#228B22);color:#fff}
+    .menu-btn-secondary{background:linear-gradient(45deg,#4CAF50,#45a049);color:#fff}
+    .menu-btn-info{background:linear-gradient(45deg,#2196F3,#1976D2);color:#fff}
+    .saved-canteiros{margin-top:12px}
+    .canteiro-item{background:#fff;border:2px solid #e9ecef;border-radius:10px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;transition:.2s}
+    .canteiro-item:hover{border-color:#2E8B57;box-shadow:0 2px 8px rgba(46,139,87,.12)}
+    .canteiro-actions{display:flex;gap:8px}
+    .setup-panel{padding:24px;background:#f8f9fa;border-bottom:2px solid #e9ecef;display:none}
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:14px}
+    .form-group{display:flex;flex-direction:column}
+    .form-group label{font-weight:600;margin-bottom:6px;color:#495057}
+    .form-group input,.form-group select{padding:12px;border:2px solid #dee2e6;border-radius:8px;font-size:15px;transition:.15s}
+    .form-group input:focus,.form-group select:focus{outline:none;border-color:#2E8B57;box-shadow:0 0 0 3px rgba(46,139,87,.12)}
+    .lado-buttons{display:flex;gap:10px;margin-top:8px}
+    .lado-btn{flex:1;padding:12px;border:2px solid #dee2e6;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;transition:.15s}
+    .lado-btn.active{background:#2E8B57;color:#fff;border-color:#2E8B57}
+    .scanning-panel{padding:30px;text-align:center;display:none}
+    .camera-container{position:relative;max-width:420px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+    #qr-video{width:100%;height:300px;object-fit:cover}
+    .scanning-overlay{position:absolute;inset:0;margin:auto;width:200px;height:200px;border:3px solid #2E8B57;border-radius:10px;box-shadow:inset 0 0 0 2px #fff}
+    .scan-info{margin:16px 0;padding:12px;background:#e8f5e8;border-radius:8px;border-left:4px solid #2E8B57}
+    .manual-entry-panel{padding:26px;background:#f8f9fa;display:none}
+    .manual-form{max-width:520px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 5px 15px rgba(0,0,0,.08)}
+    .buttons{display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+    .btn{padding:11px 22px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;transition:.15s;letter-spacing:.5px}
+    .btn-small{padding:8px 14px;font-size:13px}
+    .btn-primary{background:linear-gradient(45deg,#2E8B57,#228B22);color:#fff}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(46,139,87,.28)}
+    .btn-secondary{background:#6c757d;color:#fff}
+    .btn-danger{background:#dc3545;color:#fff}
+    .btn-warning{background:#ffc107;color:#212529}
+    .btn-info{background:#17a2b8;color:#fff}
+    .map-panel{padding:26px;display:none}
+    .canteiro-info{background:#f8f9fa;padding:16px;border-radius:10px;margin-bottom:16px;text-align:center}
+    .canteiro-info h3{color:#2E8B57;margin-bottom:6px}
+    .map-table{width:100%;border-collapse:collapse;margin-top:12px;box-shadow:0 5px 15px rgba(0,0,0,.08)}
+    .map-table th,.map-table td{border:1px solid #dee2e6;padding:12px;text-align:center}
+    .map-table th{background:linear-gradient(45deg,#2E8B57,#228B22);color:#fff;font-weight:700;text-transform:uppercase}
+    .map-table tr:nth-child(even){background:#f8f9fa}
+    .map-table tr:hover{background:#e8f5e8}
+    .sample-cell{cursor:pointer;transition:background-color .15s;min-height:50px}
+    .sample-cell:hover{background:#d4edda!important}
+    .sample-cell.empty{background:#f8f9fa;color:#6c757d;font-style:italic}
+    .sample-info{font-size:12px;color:#6c757d;margin-top:5px}
+    .status-bar{background:#2E8B57;color:#fff;padding:10px 20px;text-align:center;font-weight:700}
+    .progress-info{margin:12px 0;padding:10px;background:#e3f2fd;border-radius:6px;text-align:center}
+    .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5)}
+    .modal-content{background:#fff;margin:10% auto;padding:20px;border-radius:10px;width:90%;max-width:500px}
+    .close{color:#aaa;float:right;font-size:28px;font-weight:700;cursor:pointer}
+    .close:hover{color:#000}
+    @media (max-width:768px){
+      .header h1{font-size:1.8rem}
+      .menu-buttons{grid-template-columns:1fr}
+      .buttons{flex-direction:column;align-items:center}
+      .btn{width:100%;max-width:320px}
+      .canteiro-item{flex-direction:column;align-items:flex-start;gap:10px}
+      .canteiro-actions{width:100%;justify-content:space-between}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌱 Sistema de Mapeamento de Canteiros</h1>
+      <p>Controle de plantio de testes com QR Code</p>
+    </div>
+
+    <!-- Menu Principal -->
+    <div id="main-menu" class="main-menu">
+      <div class="menu-buttons">
+        <button class="menu-btn menu-btn-primary" onclick="novoCanteiro()">
+          <span style="font-size:2rem">🆕</span>
+          <span>Novo Canteiro</span>
+        </button>
+        <button class="menu-btn menu-btn-secondary" onclick="mostrarCanteirosSalvos()">
+          <span style="font-size:2rem">📂</span>
+          <span>Canteiros Salvos</span>
+        </button>
+        <button class="menu-btn menu-btn-info" onclick="importarDados()">
+          <span style="font-size:2rem">📥</span>
+          <span>Importar Dados</span>
+        </button>
+      </div>
+
+      <div id="saved-canteiros-list" class="saved-canteiros" style="display:none">
+        <h3>📋 Canteiros Salvos:</h3>
+        <div id="canteiros-container"></div>
+      </div>
+    </div>
+
+    <!-- Painel de Configuração -->
+    <div id="setup-panel" class="setup-panel">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="canteiro-num">Número do Canteiro</label>
+          <input type="text" id="canteiro-num" placeholder="Ex: C001" required />
+        </div>
+
+        <div class="form-group">
+          <label for="data-plantio">Data do Plantio (Canteiro)</label>
+          <input type="date" id="data-plantio" required />
+        </div>
+
+        <div class="form-group">
+          <label for="tipo-teste">Tipo de Teste</label>
+          <select id="tipo-teste" required>
+            <option value="">Selecione...</option>
+            <option value="GA">GA - Germinação</option>
+            <option value="EA48">EA48 - Envelhecimento 48h</option>
+            <option value="EA72">EA72 - Envelhecimento 72h</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Lado do Canteiro para Iniciar</label>
+          <div class="lado-buttons">
+            <button class="lado-btn" data-lado="esquerdo">⬅️ Esquerdo</button>
+            <button class="lado-btn active" data-lado="direito">Direito ➡️</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-primary" onclick="iniciarScan()">📱 Leitura QR</button>
+        <button class="btn btn-secondary" onclick="mostrarEntradaManual()">✏️ Entrada Manual</button>
+        <button class="btn btn-info" onclick="voltarMenu()">🏠 Menu</button>
+      </div>
+    </div>
+
+    <!-- Painel de Leitura QR -->
+    <div id="scanning-panel" class="scanning-panel">
+      <div class="status-bar"><span id="scan-status">Preparando câmera...</span></div>
+      <div class="camera-container">
+        <video id="qr-video"></video>
+        <div class="scanning-overlay"></div>
+      </div>
+      <div class="progress-info">
+        <strong>Amostras Lidas: <span id="sample-count">0</span>/90</strong><br />
+        <small>Lado atual: <span id="current-side">Direito</span></small>
+      </div>
+      <div class="scan-info">
+        <p><strong>📋 Como usar:</strong></p>
+        <p>1. Posicione o QR code dentro do quadrado verde</p>
+        <p>2. O código será lido automaticamente</p>
+        <p>3. A amostra será adicionada na sequência</p>
+        <p><small>💡 Capacidade: 90 amostras (45 por lado)</small></p>
+      </div>
+      <div class="buttons">
+        <button class="btn btn-secondary" onclick="trocarLado()">🔄 Trocar Lado</button>
+        <button class="btn btn-primary" onclick="finalizarScan()">✅ Finalizar</button>
+        <button class="btn btn-danger" onclick="pararScan()">❌ Parar</button>
+      </div>
+    </div>
+
+    <!-- Painel de Entrada Manual -->
+    <div id="manual-entry-panel" class="manual-entry-panel">
+      <div class="manual-form">
+        <h3 style="text-align:center;margin-bottom:16px;color:#2E8B57">📝 Entrada Manual de Amostra</h3>
+
+        <div class="form-group">
+          <label for="manual-codigo">Códigos das Amostras</label>
+          <input type="text" id="manual-codigo" placeholder="Ex: 10;20;30 ou apenas 10" />
+          <small style="color:#6c757d;font-size:12px">
+            💡 <strong>Múltiplas amostras:</strong> Separe por ponto e vírgula (;)<br />
+            📋 <strong>Exemplo:</strong> 10;20;30 (criará 3 amostras sequenciais)
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="manual-tipo-teste-individual">Tipo de Teste</label>
+          <select id="manual-tipo-teste-individual">
+            <option value="">Selecione...</option>
+            <option value="GA">GA - Germinação</option>
+            <option value="EA48">EA48 - Envelhecimento 48h</option>
+            <option value="EA72">EA72 - Envelhecimento 72h</option>
+          </select>
+          <small style="color:#6c757d;font-size:12px">💡 Cada amostra pode ter um tipo de teste diferente</small>
+        </div>
+
+        <div class="form-group">
+          <label for="manual-tipo-remessa">Origem da Amostra</label>
+          <select id="manual-tipo-remessa">
+            <option value="">Selecione...</option>
+            <option value="Lote">Lote</option>
+            <option value="TSI">TSI</option>
+            <option value="Carregamento">Carregamento</option>
+            <option value="Teste">Teste</option>
+            <option value="Reclamação">Reclamação</option>
+            <option value="Entrada de Semente">Entrada de Semente</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="manual-lado">Lado do Canteiro</label>
+          <select id="manual-lado">
+            <option value="direito">Direito</option>
+            <option value="esquerdo">Esquerdo</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="manual-posicao">Posição Inicial</label>
+          <input type="number" id="manual-posicao" min="1" placeholder="Ex: 1" />
+          <small style="color:#6c757d;font-size:12px">
+            📍 <strong>Posição inicial:</strong> Amostras múltiplas serão colocadas em sequência (1,2,3...)
+          </small>
+        </div>
+
+        <!-- NOVO CAMPO: Data de Plantio da Amostra -->
+        <div class="form-group">
+          <label for="manual-data-plantio">Data de Plantio da Amostra</label>
+          <input type="date" id="manual-data-plantio" />
+          <small style="color:#6c757d;font-size:12px">🌱 Se não preencher, usaremos a data do canteiro.</small>
+        </div>
+
+        <div id="preview-area" style="display:none;margin:12px 0;padding:10px;background:#e8f5e8;border-radius:6px;border-left:4px solid #2E8B57">
+          <strong>📋 Preview das amostras:</strong>
+          <div id="preview-content"></div>
+        </div>
+
+        <div class="buttons">
+          <button class="btn btn-primary" onclick="adicionarAmostraManual()">➕ Adicionar</button>
+          <button class="btn btn-secondary" onclick="previewAmostras()">👁️ Preview</button>
+          <button class="btn btn-secondary" onclick="voltarParaSetup()">⬅️ Voltar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel do Mapa -->
+    <div id="map-panel" class="map-panel">
+      <div class="canteiro-info">
+        <h3 id="canteiro-title">Mapa do Canteiro</h3>
+        <p id="canteiro-details">Detalhes do plantio</p>
+      </div>
+
+      <table class="map-table" id="mapa-table">
+        <thead>
+          <tr>
+            <th>Posição</th>
+            <th>Lado Esquerdo</th>
+            <th>Lado Direito</th>
+          </tr>
+        </thead>
+        <tbody id="mapa-tbody"></tbody>
+      </table>
+
+      <div class="buttons">
+        <button class="btn btn-primary" onclick="continuarAdicionando()">➕ Continuar Adicionando</button>
+        <button class="btn btn-secondary" onclick="mostrarEntradaManual()">✏️ Entrada Manual</button>
+        <button class="btn btn-warning" onclick="limparCanteiro()">🧹 Limpar Canteiro</button>
+        <button class="btn btn-info" onclick="exportarMapa()">📄 Exportar JSON</button>
+        <button class="btn btn-info" onclick="exportarPDF(event)">📑 Exportar PDF</button>
+        <button class="btn btn-secondary" onclick="voltarMenu()">🏠 Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="fecharModal()">&times;</span>
+      <h3 id="modal-title">Confirmar Ação</h3>
+      <p id="modal-message">Tem certeza?</p>
+      <div class="buttons">
+        <button class="btn btn-danger" id="modal-confirm">Confirmar</button>
+        <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input oculto para importar arquivos -->
+  <input type="file" id="import-input" accept=".json" style="display:none" onchange="processarImportacao(event)" />
+
+  <script>
+    let scanner = null;
+    let amostras = [];
+    let ladoAtual = 'direito';
+    let configuracao = {};
+    let canteiroAtual = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('data-plantio').valueAsDate = new Date();
+      carregarCanteirosSalvos();
+
+      document.querySelectorAll('.lado-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+          document.querySelectorAll('.lado-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          ladoAtual = this.dataset.lado;
+        });
+      });
+    });
+
+    /* ===================== DADOS (LocalStorage) ===================== */
+    function salvarDados() {
+      const dados = { configuracao, amostras, ultimaAtualizacao: new Date().toISOString() };
+      localStorage.setItem(`canteiro_${configuracao.canteiro}`, JSON.stringify(dados));
+      carregarCanteirosSalvos();
+    }
+
+    function carregarDados(canteiro) {
+      const dados = localStorage.getItem(`canteiro_${canteiro}`);
+      if (!dados) return false;
+      const dadosObj = JSON.parse(dados);
+      configuracao = dadosObj.configuracao;
+      amostras = dadosObj.amostras || [];
+      canteiroAtual = canteiro;
+
+      document.getElementById('canteiro-num').value = configuracao.canteiro || '';
+      document.getElementById('data-plantio').value = configuracao.data || '';
+      document.getElementById('tipo-teste').value = configuracao.tipoTeste || '';
+
+      return true;
+    }
+
+    function carregarCanteirosSalvos() {
+      const container = document.getElementById('canteiros-container');
+      container.innerHTML = '';
+      let tem = false;
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key.startsWith('canteiro_')) continue;
+        tem = true;
+        const dados = JSON.parse(localStorage.getItem(key));
+        const canteiro = key.replace('canteiro_', '');
+
+        const item = document.createElement('div');
+        item.className = 'canteiro-item';
+        item.innerHTML = `
+          <div class="canteiro-info-item">
+            <strong>Canteiro: ${dados.configuracao.canteiro}</strong><br>
+            <small>📅 ${new Date(dados.configuracao.data).toLocaleDateString('pt-BR')} |
+            🧪 ${dados.configuracao.tipoTeste} |
+            📊 ${dados.amostras.length} amostras</small>
+          </div>
+          <div class="canteiro-actions">
+            <button class="btn btn-small btn-primary" onclick="abrirCanteiro('${canteiro}')">Abrir</button>
+            <button class="btn btn-small btn-danger" onclick="confirmarExclusao('${canteiro}')">Excluir</button>
+          </div>`;
+        container.appendChild(item);
+      }
+      document.getElementById('saved-canteiros-list').style.display = tem ? 'block' : 'none';
+    }
+
+    /* ===================== NAVEGAÇÃO ===================== */
+    function mostrarCanteirosSalvos() { carregarCanteirosSalvos(); }
+    function novoCanteiro() {
+      amostras = [];
+      configuracao = {};
+      canteiroAtual = null;
+
+      document.getElementById('canteiro-num').value = '';
+      document.getElementById('data-plantio').valueAsDate = new Date();
+      document.getElementById('tipo-teste').value = '';
+
+      document.querySelectorAll('.lado-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-lado="direito"]').classList.add('active');
+      ladoAtual = 'direito';
+
+      mostrarPainel('setup-panel');
+    }
+    function abrirCanteiro(canteiro) {
+      if (!carregarDados(canteiro)) return alert('Erro ao carregar canteiro!');
+      gerarMapa();
+      mostrarPainel('map-panel');
+    }
+    function voltarMenu() { mostrarPainel('main-menu'); }
+    function voltarParaSetup() { mostrarPainel('setup-panel'); }
+    function mostrarPainel(id) {
+      document.querySelectorAll('.main-menu,.setup-panel,.scanning-panel,.manual-entry-panel,.map-panel').forEach(p => p.style.display = 'none');
+      document.getElementById(id).style.display = 'block';
+    }
+
+    /* ===================== LEITURA QR ===================== */
+    async function iniciarScan() {
+      if (!validarConfiguracao()) return;
+      mostrarPainel('scanning-panel');
+      try {
+        const video = document.getElementById('qr-video');
+        scanner = new QrScanner(video, result => processarQRCode(result), {
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+        });
+        await scanner.start();
+        document.getElementById('scan-status').textContent = 'Câmera ativa - Posicione o QR code';
+        atualizarContadorAmostras();
+      } catch (e) {
+        console.error(e);
+        alert('Erro ao acessar câmera. Verifique as permissões.');
+      }
+    }
+
+    function processarQRCode(result) {
+      try {
+        const url = result.data;
+        const match = url.match(/codigoamostra=(\d+)/);
+        if (!match) return alert('QR inválido! Parâmetro "codigoamostra" não encontrado.');
+        const codigoAmostra = match[1];
+
+        if (amostras.some(a => a.codigo === codigoAmostra)) {
+          return alert(`Amostra ${codigoAmostra} já foi lida!`);
+        }
+
+        const amostra = {
+          codigo: codigoAmostra,
+          url,
+          lado: ladoAtual,
+          posicao: amostras.filter(a => a.lado === ladoAtual).length + 1,
+          tipoTeste: configuracao.tipoTeste,
+          tipoRemessa: 'QR',
+          timestamp: new Date().toISOString(),
+          dataPlantio: configuracao.data || null,
+          manual: false
+        };
+
+        amostras.push(amostra);
+        salvarDados();
+        atualizarContadorAmostras();
+        navigator.vibrate && navigator.vibrate(100);
+      } catch (e) {
+        console.error(e);
+        alert('Erro ao processar QR code');
+      }
+    }
+
+    function trocarLado() {
+      ladoAtual = (ladoAtual === 'direito') ? 'esquerdo' : 'direito';
+      document.getElementById('current-side').textContent = (ladoAtual === 'direito') ? 'Direito' : 'Esquerdo';
+    }
+    function finalizarScan() {
+      if (!amostras.length) return alert('Nenhuma amostra foi lida!');
+      pararScan();
+      gerarMapa();
+    }
+    function pararScan() { if (scanner) { scanner.stop(); scanner = null; } mostrarPainel('setup-panel'); }
+    function continuarAdicionando() { mostrarPainel('setup-panel'); }
+
+    /* ===================== ENTRADA MANUAL ===================== */
+    function mostrarEntradaManual() {
+      if (!validarConfiguracao()) return;
+
+      const proxima = amostras.filter(a => a.lado === ladoAtual).length + 1;
+      document.getElementById('manual-posicao').value = proxima;
+      document.getElementById('manual-lado').value = ladoAtual;
+      document.getElementById('manual-codigo').value = '';
+      document.getElementById('manual-tipo-teste-individual').value = configuracao.tipoTeste || '';
+      document.getElementById('manual-tipo-remessa').value = '';
+      document.getElementById('manual-data-plantio').value = '';
+      document.getElementById('preview-area').style.display = 'none';
+
+      mostrarPainel('manual-entry-panel');
+    }
+
+    function adicionarAmostraManual() {
+      const codigosInput = document.getElementById('manual-codigo').value.trim();
+      const tipoTesteIndividual = document.getElementById('manual-tipo-teste-individual').value;
+      const tipoRemessa = document.getElementById('manual-tipo-remessa').value;
+      const lado = document.getElementById('manual-lado').value;
+      const posicaoInicial = parseInt(document.getElementById('manual-posicao').value, 10);
+      const dataPlantioInput = document.getElementById('manual-data-plantio').value;
+
+      if (!codigosInput) return alert('Informe o(s) código(s)!');
+      if (!tipoTesteIndividual) return alert('Selecione o tipo de teste!');
+      if (!tipoRemessa) return alert('Selecione a origem da amostra!');
+      if (!posicaoInicial || posicaoInicial < 1) return alert('Posição inicial inválida!');
+
+      const codigos = codigosInput.split(';').map(c => c.trim()).filter(Boolean);
+      const codigosUnicos = [...new Set(codigos)];
+      if (codigosUnicos.length !== codigos.length) return alert('❌ Há códigos duplicados no input.');
+
+      const repetidos = codigos.filter(c => amostras.some(a => a.codigo === c && a.tipoTeste === tipoTesteIndividual));
+      if (repetidos.length) {
+        return alert(`❌ Já existem para ${tipoTesteIndividual}: ${repetidos.join(', ')}`);
+      }
+
+      const conflitos = [];
+      for (let i = 0; i < codigos.length; i++) {
+        const pos = posicaoInicial + i;
+        const c = amostras.find(a => a.lado === lado && a.posicao === pos);
+        if (c) conflitos.push(`Posição ${pos}: ${c.codigo} (${c.tipoTeste || 'N/A'})`);
+      }
+      if (conflitos.length) {
+        const ok = confirm(`⚠️ Conflitos de posição:\n\n${conflitos.join('\n')}\n\nSubstituir?`);
+        if (!ok) return;
+        for (let i = 0; i < codigos.length; i++) {
+          const pos = posicaoInicial + i;
+          amostras = amostras.filter(a => !(a.lado === lado && a.posicao === pos));
+        }
+      }
+
+      const adicionadas = [];
+      for (let i = 0; i < codigos.length; i++) {
+        const codigo = codigos[i];
+        const pos = posicaoInicial + i;
+        const amostra = {
+          codigo,
+          url: `http://softsulsistemas.com.br/?codigoamostra=${codigo}`,
+          lado,
+          posicao: pos,
+          tipoRemessa,
+          tipoTeste: tipoTesteIndividual,
+          timestamp: new Date().toISOString(),
+          dataPlantio: dataPlantioInput || configuracao.data || null,
+          manual: true
+        };
+        amostras.push(amostra);
+        adicionadas.push(`${codigo} (${tipoTesteIndividual}) → Pos. ${pos}`);
+      }
+
+      salvarDados();
+      alert(`✅ ${codigos.length} amostra(s) adicionada(s)!\n\nTeste: ${tipoTesteIndividual}\nOrigem: ${tipoRemessa}\nLado: ${lado}\nData Plantio: ${dataPlantioInput || configuracao.data || '—'}\n\nDetalhes:\n${adicionadas.join('\n')}`);
+
+      document.getElementById('manual-codigo').value = '';
+      document.getElementById('manual-tipo-teste-individual').value = '';
+      document.getElementById('manual-tipo-remessa').value = '';
+      document.getElementById('manual-data-plantio').value = '';
+      document.getElementById('preview-area').style.display = 'none';
+
+      const prox = Math.max(0, ...amostras.filter(a => a.lado === lado).map(a => a.posicao)) + 1;
+      document.getElementById('manual-posicao').value = prox;
+    }
+
+    function previewAmostras() {
+      const codigosInput = document.getElementById('manual-codigo').value.trim();
+      const tipoTesteIndividual = document.getElementById('manual-tipo-teste-individual').value || 'Não selecionado';
+      const tipoRemessa = document.getElementById('manual-tipo-remessa').value || '—';
+      const lado = document.getElementById('manual-lado').value;
+      const posicaoInicial = parseInt(document.getElementById('manual-posicao').value, 10);
+      const dataPlantioInput = document.getElementById('manual-data-plantio').value || configuracao.data || '—';
+
+      if (!codigosInput) return alert('Digite os códigos para ver o preview!');
+      if (!posicaoInicial || posicaoInicial < 1) return alert('Digite uma posição inicial válida!');
+
+      const codigos = codigosInput.split(';').map(c => c.trim()).filter(Boolean);
+      if (!codigos.length) return alert('Nenhum código válido encontrado!');
+
+      let html = `<strong>📊 Será(ão) criada(s) ${codigos.length} amostra(s) para ${tipoTesteIndividual}:</strong><br><br>`;
+      for (let i = 0; i < codigos.length; i++) {
+        const codigo = codigos[i];
+        const pos = posicaoInicial + i;
+        const existeMesmoTeste = tipoTesteIndividual !== 'Não selecionado' && amostras.some(a => a.codigo === codigo && a.tipoTeste === tipoTesteIndividual);
+        const outro = tipoTesteIndividual !== 'Não selecionado' && amostras.find(a => a.codigo === codigo && a.tipoTeste !== tipoTesteIndividual);
+        const conflito = amostras.find(a => a.lado === lado && a.posicao === pos);
+
+        let status = '✅';
+        let obs = '';
+        if (existeMesmoTeste) { status = '❌'; obs += ' (já existe neste teste)'; }
+        if (outro) { obs += ` (existe para ${outro.tipoTeste})`; }
+        if (conflito) { status = status === '✅' ? '⚠️' : status; obs += ` | substituirá ${conflito.codigo} (${conflito.tipoTeste || 'N/A'})`; }
+
+        html += `${status} <strong>${codigo}</strong> (${tipoTesteIndividual}) → Posição ${pos} (${lado}) | 🌱 ${dataPlantioInput}${obs}<br>`;
+      }
+      html += `<br><strong>Origem:</strong> ${tipoRemessa}`;
+
+      document.getElementById('preview-content').innerHTML = html;
+      document.getElementById('preview-area').style.display = 'block';
+    }
+
+    /* ===================== MAPA (OTIMIZADO) ===================== */
+    function gerarMapa() {
+      mostrarPainel('map-panel');
+
+      // Cabeçalho com resumo inteligente do tipo de teste
+      const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
+      const tipoTesteDisplay = !tiposUnicos.length
+        ? (configuracao.tipoTeste || 'N/A')
+        : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
+
+      document.getElementById('canteiro-title').textContent = `Mapa do Canteiro ${configuracao.canteiro || ''}`;
+      document.getElementById('canteiro-details').innerHTML =
+        `📅 Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'} | ` +
+        `🧪 Teste: ${tipoTesteDisplay} | ` +
+        `📊 Total de Amostras: ${amostras.length}`;
+
+      const esq = amostras.filter(a => a.lado === 'esquerdo').sort((a, b) => a.posicao - b.posicao);
+      const dir = amostras.filter(a => a.lado === 'direito').sort((a, b) => a.posicao - b.posicao);
+      const maxPos = Math.max(esq.length, dir.length, 45);
+
+      const tbody = document.getElementById('mapa-tbody');
+      tbody.innerHTML = '';
+
+      // Função auxiliar para criar célula
+      const criarCelula = (amostra, lado, posicao) => {
+        const cell = document.createElement('td');
+        cell.className = 'sample-cell';
+
+        if (amostra) {
+          const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
+          const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : null;
+          cell.innerHTML = `
+            <strong>${amostra.codigo}</strong>
+            <div class="sample-info">
+              ${amostra.tipoTeste || 'N/A'}${amostra.tipoRemessa ? ' | ' + amostra.tipoRemessa : ''} | ${dataTs}
+              ${dataPl ? ' | 🌱 ' + dataPl : ''}${amostra.manual ? ' (Manual)' : ''}
+            </div>`;
+          cell.addEventListener('click', e => { e.preventDefault(); editarOuRemoverAmostra(amostra); });
+        } else {
+          cell.innerHTML = '<em style="color:#ccc;">Vazio</em>';
+          cell.classList.add('empty');
+          cell.addEventListener('click', e => { e.preventDefault(); adicionarAmostraNaPosicao(lado, posicao); });
+        }
+        return cell;
+      };
+
+      for (let i = 0; i < maxPos; i++) {
+        const tr = document.createElement('tr');
+
+        const tdPos = document.createElement('td');
+        tdPos.textContent = i + 1;
+        tdPos.style.fontWeight = 'bold';
+        tr.appendChild(tdPos);
+
+        tr.appendChild(criarCelula(esq.find(a => a.posicao === i + 1), 'esquerdo', i + 1));
+        tr.appendChild(criarCelula(dir.find(a => a.posicao === i + 1), 'direito', i + 1));
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    function editarOuRemoverAmostra(amostra) {
+      if (!amostra || typeof amostra !== 'object' || !amostra.codigo) {
+        return alert('Amostra inválida.');
+      }
+      const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
+      const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : '—';
+      const info = `AMOSTRA: ${amostra.codigo}
+POSIÇÃO: ${amostra.posicao} (${amostra.lado})
+ORIGEM: ${amostra.tipoRemessa || 'Não definido'}
+DATA REGISTRO: ${dataTs}
+DATA PLANTIO: ${dataPl}
+
+O que deseja fazer?`;
+
+      if (confirm(`${info}\n\n🔷 OPÇÃO 1: EDITAR POSIÇÃO\nOK = editar | Cancelar = próxima opção`)) {
+        return editarPosicaoAmostra(amostra);
+      }
+      if (confirm(`${info}\n\n🔷 OPÇÃO 2: LIMPAR POSIÇÃO\nOK = limpar | Cancelar = próxima opção`)) {
+        return limparPosicaoAmostra(amostra);
+      }
+      if (confirm(`${info}\n\n🔷 OPÇÃO 3: REMOVER AMOSTRA\nOK = remover | Cancelar = sair`)) {
+        return removerAmostra(amostra);
+      }
+    }
+
+    function editarPosicaoAmostra(amostra) {
+      const nova = prompt(`✏️ EDITAR POSIÇÃO\n\nAmostra: ${amostra.codigo}\nPosição atual: ${amostra.posicao} (${amostra.lado})\n\n➡️ Digite a nova posição:`, amostra.posicao);
+      if (!nova) return;
+      const pos = parseInt(nova, 10);
+      if (isNaN(pos) || pos < 1) return alert('Posição inválida.');
+
+      const ocupada = amostras.find(a => a.lado === amostra.lado && a.posicao === pos && a.codigo !== amostra.codigo);
+      if (ocupada) return alert(`Posição ${pos} já ocupada por ${ocupada.codigo}.`);
+
+      const idx = amostras.findIndex(a => a.codigo === amostra.codigo && a.tipoTeste === amostra.tipoTeste && a.lado === amostra.lado);
+      if (idx === -1) return alert('Amostra não encontrada.');
+      amostras[idx].posicao = pos;
+      salvarDados();
+      gerarMapa();
+      alert(`✅ Amostra movida para posição ${pos}.`);
+    }
+
+    function limparPosicaoAmostra(amostra) {
+      const ok = confirm(`🧹 LIMPAR POSIÇÃO\n\nAmostra: ${amostra.codigo}\nPosição: ${amostra.posicao} (${amostra.lado})\n\nRemover da posição?`);
+      if (!ok) return;
+      amostras = amostras.filter(a => !(a.codigo === amostra.codigo && a.lado === amostra.lado && a.tipoTeste === amostra.tipoTeste));
+      salvarDados();
+      gerarMapa();
+      alert('✅ Posição liberada.');
+    }
+
+    function removerAmostra(amostra) {
+      const ok = confirm(`🗑️ REMOVER AMOSTRA\n\nAmostra: ${amostra.codigo}\nRemover completamente do canteiro?`);
+      if (!ok) return;
+      amostras = amostras.filter(a => !(a.codigo === amostra.codigo && a.tipoTeste === amostra.tipoTeste));
+      salvarDados();
+      gerarMapa();
+      alert('✅ Amostra removida.');
+    }
+
+    // Também pergunta DATA DE PLANTIO ao adicionar clicando numa célula vazia
+    function adicionarAmostraNaPosicao(lado, posicao) {
+      const codigo = prompt(`Adicionar amostra na posição ${posicao} (${lado})\n\nCódigo da amostra:`);
+      if (!codigo || !codigo.trim()) return;
+      const codigoLimpo = codigo.trim();
+
+      const tipoTesteOpt = prompt(`Tipo de teste para a amostra ${codigoLimpo}:\n1 - GA\n2 - EA48\n3 - EA72\n\nDigite o número da opção:`);
+      const tipoTeste = ({ '1': 'GA', '2': 'EA48', '3': 'EA72' }[tipoTesteOpt]) || (configuracao.tipoTeste || 'GA');
+
+      if (amostras.some(a => a.codigo === codigoLimpo && a.tipoTeste === tipoTeste)) {
+        return alert(`Amostra ${codigoLimpo} já existe para ${tipoTeste}.`);
+      }
+
+      const tipoRemessaOpt = prompt(`Origem da amostra ${codigoLimpo}:\n1 - Lote\n2 - TSI\n3 - Carregamento\n4 - Teste\n5 - Reclamação\n6 - Entrada de Semente\n\nDigite o número da opção:`);
+      const tipoRemessa = ({
+        '1': 'Lote', '2': 'TSI', '3': 'Carregamento', '4': 'Teste', '5': 'Reclamação', '6': 'Entrada de Semente'
+      }[tipoRemessaOpt]) || 'Teste';
+
+      // NOVO: Data de plantio solicitada (ou usa a do canteiro)
+      const dataPl = prompt(`🌱 Data de plantio (AAAA-MM-DD)\n\nDeixe vazio para usar a data do canteiro (${configuracao.data || 'não definida'}):`) || configuracao.data || null;
+
+      // Se já houver amostra na posição, substitui após confirmar
+      const conflito = amostras.find(a => a.lado === lado && a.posicao === posicao);
+      if (conflito) {
+        const ok = confirm(`⚠️ Posição ${posicao} já ocupada por ${conflito.codigo} (${conflito.tipoTeste || 'N/A'}).\nSubstituir?`);
+        if (!ok) return;
+        amostras = amostras.filter(a => !(a.lado === lado && a.posicao === posicao));
+      }
+
+      const amostra = {
+        codigo: codigoLimpo,
+        url: `http://softsulsistemas.com.br/?codigoamostra=${codigoLimpo}`,
+        lado,
+        posicao,
+        tipoRemessa,
+        tipoTeste,
+        timestamp: new Date().toISOString(),
+        dataPlantio: dataPl,
+        manual: true
+      };
+
+      amostras.push(amostra);
+      salvarDados();
+      gerarMapa();
+      alert(`✅ Amostra adicionada!\nCódigo: ${codigoLimpo}\nTeste: ${tipoTeste}\nOrigem: ${tipoRemessa}\nPosição: ${posicao} (${lado})\n🌱 Data Plantio: ${dataPl || '—'}`);
+    }
+
+    function limparCanteiro() {
+      mostrarModal('Limpar Canteiro',
+        `Deseja realmente limpar todas as amostras do canteiro ${configuracao.canteiro || ''}?\n\nEsta ação não pode ser desfeita!`,
+        () => { amostras = []; salvarDados(); gerarMapa(); alert('Canteiro limpo com sucesso!'); fecharModal(); }
+      );
+    }
+
+    /* ===================== UTIL ===================== */
+    function validarConfiguracao() {
+      const canteiroNum = document.getElementById('canteiro-num').value.trim();
+      const dataPlantio = document.getElementById('data-plantio').value;
+      const tipoTeste = document.getElementById('tipo-teste').value;
+
+      if (!canteiroNum || !dataPlantio || !tipoTeste) {
+        alert('Preencha número do canteiro, data e tipo de teste.');
+        return false;
+      }
+      configuracao = { canteiro: canteiroNum, data: dataPlantio, tipoTeste, ladoInicial: ladoAtual };
+      return true;
+    }
+
+    function atualizarContadorAmostras() {
+      document.getElementById('sample-count').textContent = amostras.length;
+      document.getElementById('current-side').textContent = (ladoAtual === 'direito') ? 'Direito' : 'Esquerdo';
+    }
+
+    function confirmarExclusao(canteiro) {
+      mostrarModal('Excluir Canteiro',
+        `Deseja realmente excluir o canteiro ${canteiro}?\n\nTodos os dados serão perdidos!`,
+        () => { localStorage.removeItem(`canteiro_${canteiro}`); carregarCanteirosSalvos(); alert('Canteiro excluído.'); fecharModal(); }
+      );
+    }
+
+    /* ===================== MODAL ===================== */
+    function mostrarModal(titulo, mensagem, onConfirm) {
+      document.getElementById('modal-title').textContent = titulo;
+      document.getElementById('modal-message').textContent = mensagem;
+      document.getElementById('modal-confirm').onclick = onConfirm;
+      document.getElementById('confirmModal').style.display = 'block';
+    }
+    function fecharModal() { document.getElementById('confirmModal').style.display = 'none'; }
+    window.onclick = e => { const m = document.getElementById('confirmModal'); if (e.target === m) fecharModal(); };
+
+    /* ===================== IMPORTAR / EXPORTAR ===================== */
+    function exportarMapa() {
+      const dados = { configuracao, amostras, dataExportacao: new Date().toISOString(), versao: '2.1' };
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Mapa_Canteiro_${(configuracao.canteiro || 'X')}_${(configuracao.data || '').replace(/-/g,'')}.json`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('Mapa exportado em JSON!');
+    }
+
+    async function exportarPDF(evt) {
+      try {
+        if (typeof window.jspdf === 'undefined') return alert('Biblioteca PDF não carregada.');
+        const btn = evt?.target;
+        if (btn) { btn.disabled = true; const t = btn.textContent; btn.dataset._t = t; btn.textContent = '⏳ Gerando PDF...'; }
+        await new Promise(r => setTimeout(r, 50));
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const margem = 20;
+        const largura = 210 - margem * 2;
+        let y = margem;
+
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+        pdf.text(`Mapa do Canteiro ${configuracao.canteiro || ''}`, margem, y); y += 12;
+
+        const tiposUnicos = [...new Set(amostras.map(a => a.tipoTeste).filter(Boolean))];
+        const tipoTesteDisplay = !tiposUnicos.length
+          ? (configuracao.tipoTeste || 'N/A')
+          : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
+
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
+        pdf.text(`Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'}`, margem, y);
+        pdf.text(`Teste: ${tipoTesteDisplay}`, margem + 60, y);
+        pdf.text(`Amostras: ${amostras.length}`, margem + 130, y); y += 8;
+        pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margem, y); y += 10;
+
+        const colW = largura / 3;
+        const rowH = 10;
+
+        pdf.setFillColor(240,240,240);
+        pdf.rect(margem, y, colW, rowH, 'F');
+        pdf.rect(margem+colW, y, colW, rowH, 'F');
+        pdf.rect(margem+2*colW, y, colW, rowH, 'F');
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+        pdf.text('Posição', margem+5, y+7);
+        pdf.text('Lado Esquerdo', margem+colW+5, y+7);
+        pdf.text('Lado Direito', margem+2*colW+5, y+7);
+        y += rowH;
+
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+        const esq = amostras.filter(a => a.lado === 'esquerdo').sort((a,b)=>a.posicao-b.posicao);
+        const dir = amostras.filter(a => a.lado === 'direito').sort((a,b)=>a.posicao-b.posicao);
+        const maxPos = Math.max(esq.length, dir.length, 45);
+
+        for (let i=0;i<maxPos;i++) {
+          if (y > 250) {
+            pdf.addPage(); y = margem;
+            pdf.setFillColor(240,240,240);
+            pdf.rect(margem, y, colW, rowH, 'F');
+            pdf.rect(margem+colW, y, colW, rowH, 'F');
+            pdf.rect(margem+2*colW, y, colW, rowH, 'F');
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+            pdf.text('Posição', margem+5, y+7);
+            pdf.text('Lado Esquerdo', margem+colW+5, y+7);
+            pdf.text('Lado Direito', margem+2*colW+5, y+7);
+            y += rowH;
+            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+          }
+
+          const pos = i+1;
+          const aE = esq.find(a => a.posicao === pos);
+          const aD = dir.find(a => a.posicao === pos);
+
+          pdf.rect(margem, y, colW, rowH*2);
+          pdf.rect(margem+colW, y, colW, rowH*2);
+          pdf.rect(margem+2*colW, y, colW, rowH*2);
+
+          pdf.setFont('helvetica', 'bold'); pdf.text(String(pos), margem+5, y+6);
+          pdf.setFont('helvetica', 'normal');
+
+          const drawSide = (a, x) => {
+            if (!a) { pdf.setTextColor(128); pdf.text('Vazio', x+5, y+10); pdf.setTextColor(0); return; }
+            const dataTs = a.timestamp ? new Date(a.timestamp).toLocaleDateString('pt-BR') : '—';
+            const dataPl = a.dataPlantio ? new Date(a.dataPlantio).toLocaleDateString('pt-BR') : null;
+            pdf.setFont('helvetica','bold'); pdf.text(a.codigo, x+5, y+6);
+            pdf.setFont('helvetica','normal'); pdf.setFontSize(7);
+            const info = `${a.tipoTeste || configuracao.tipoTeste || 'N/A'} | ${a.tipoRemessa || 'N/A'} | ${dataTs}${dataPl ? ' | 🌱 '+dataPl : ''}${a.manual ? ' | Manual' : ''}`;
+            pdf.text(info, x+5, y+12);
+            pdf.setFontSize(9);
+          };
+          drawSide(aE, margem+colW);
+          drawSide(aD, margem+2*colW);
+          y += rowH*2;
+        }
+
+        const nome = `Mapa_Canteiro_${(configuracao.canteiro || 'X')}_${(configuracao.data || '').replace(/-/g,'')}.pdf`;
+        pdf.save(nome);
+
+        if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
+        alert('PDF gerado com sucesso!');
+      } catch (e) {
+        console.error(e);
+        const btn = evt?.target;
+        if (btn) { btn.textContent = btn.dataset._t || '📑 Exportar PDF'; btn.disabled = false; }
+        alert('Erro ao gerar PDF: ' + e.message);
+      }
+    }
+
+    function criarDadosPDF() {
+      return { configuracao, amostras, dataGeracao: new Date().toISOString() };
+    }
+
+    function importarDados() {
+      document.getElementById('import-input').click();
+    }
+
+    function processarImportacao(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const dados = JSON.parse(e.target.result);
+          if (!dados.configuracao || !dados.amostras) return alert('Arquivo inválido.');
+          const existe = localStorage.getItem(`canteiro_${dados.configuracao.canteiro}`);
+          if (existe && !confirm(`Canteiro ${dados.configuracao.canteiro} já existe. Sobrescrever?`)) return;
+          configuracao = dados.configuracao;
+          amostras = dados.amostras;
+          salvarDados();
+          carregarCanteirosSalvos();
+          alert(`Canteiro ${configuracao.canteiro} importado.\n${amostras.length} amostra(s) carregada(s).`);
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao processar arquivo. Verifique o formato.');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+  </script>
+</body>
+</html>
