@@ -310,6 +310,29 @@
       });
     });
 
+    /* ===================== Utils de Data (sem timezone) ===================== */
+    function isYMD(str) {
+      return typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str);
+    }
+
+    function formatYMDToBR(ymd) {
+      if (!isYMD(ymd)) return '—';
+      const [y, m, d] = ymd.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function formatAnyDateToBR(value) {
+      if (!value) return '—';
+      if (isYMD(value)) return formatYMDToBR(value);
+      try {
+        const dt = new Date(value);
+        if (isNaN(dt.getTime())) return '—';
+        return dt.toLocaleDateString('pt-BR');
+      } catch {
+        return '—';
+      }
+    }
+
     /* ===================== DADOS (LocalStorage) ===================== */
     function salvarDados() {
       const dados = { configuracao, amostras, ultimaAtualizacao: new Date().toISOString() };
@@ -349,7 +372,7 @@
         item.innerHTML = `
           <div class="canteiro-info-item">
             <strong>Canteiro: ${dados.configuracao.canteiro}</strong><br>
-            <small>📅 ${new Date(dados.configuracao.data).toLocaleDateString('pt-BR')} |
+            <small>📅 ${formatAnyDateToBR(dados.configuracao.data)} |
             🧪 ${dados.configuracao.tipoTeste} |
             📊 ${dados.amostras.length} amostras</small>
           </div>
@@ -418,7 +441,7 @@
         const codigoAmostra = match[1];
 
         if (amostras.some(a => a.codigo === codigoAmostra)) {
-          return alert(`Amostra ${codigoAmostra} já foi lida!`);
+          return alert(\`Amostra \${codigoAmostra} já foi lida!\`);
         }
 
         const amostra = {
@@ -490,17 +513,17 @@
 
       const repetidos = codigos.filter(c => amostras.some(a => a.codigo === c && a.tipoTeste === tipoTesteIndividual));
       if (repetidos.length) {
-        return alert(`❌ Já existem para ${tipoTesteIndividual}: ${repetidos.join(', ')}`);
+        return alert(\`❌ Já existem para \${tipoTesteIndividual}: \${repetidos.join(', ')}\`);
       }
 
       const conflitos = [];
       for (let i = 0; i < codigos.length; i++) {
         const pos = posicaoInicial + i;
         const c = amostras.find(a => a.lado === lado && a.posicao === pos);
-        if (c) conflitos.push(`Posição ${pos}: ${c.codigo} (${c.tipoTeste || 'N/A'})`);
+        if (c) conflitos.push(\`Posição \${pos}: \${c.codigo} (\${c.tipoTeste || 'N/A'})\`);
       }
       if (conflitos.length) {
-        const ok = confirm(`⚠️ Conflitos de posição:\n\n${conflitos.join('\n')}\n\nSubstituir?`);
+        const ok = confirm(\`⚠️ Conflitos de posição:\n\n\${conflitos.join('\n')}\n\nSubstituir?\`);
         if (!ok) return;
         for (let i = 0; i < codigos.length; i++) {
           const pos = posicaoInicial + i;
@@ -524,11 +547,11 @@
           manual: true
         };
         amostras.push(amostra);
-        adicionadas.push(`${codigo} (${tipoTesteIndividual}) → Pos. ${pos}`);
+        adicionadas.push(\`\${codigo} (\${tipoTesteIndividual}) → Pos. \${pos}\`);
       }
 
       salvarDados();
-      alert(`✅ ${codigos.length} amostra(s) adicionada(s)!\n\nTeste: ${tipoTesteIndividual}\nOrigem: ${tipoRemessa}\nLado: ${lado}\nData Plantio: ${dataPlantioInput || configuracao.data || '—'}\n\nDetalhes:\n${adicionadas.join('\n')}`);
+      alert(\`✅ \${codigos.length} amostra(s) adicionada(s)!\n\nTeste: \${tipoTesteIndividual}\nOrigem: \${tipoRemessa}\nLado: \${lado}\nData Plantio: \${dataPlantioInput || configuracao.data || '—'}\n\nDetalhes:\n\${adicionadas.join('\n')}\`);
 
       document.getElementById('manual-codigo').value = '';
       document.getElementById('manual-tipo-teste-individual').value = '';
@@ -568,7 +591,7 @@
         if (outro) { obs += ` (existe para ${outro.tipoTeste})`; }
         if (conflito) { status = status === '✅' ? '⚠️' : status; obs += ` | substituirá ${conflito.codigo} (${conflito.tipoTeste || 'N/A'})`; }
 
-        html += `${status} <strong>${codigo}</strong> (${tipoTesteIndividual}) → Posição ${pos} (${lado}) | 🌱 ${dataPlantioInput}${obs}<br>`;
+        html += `${status} <strong>${codigo}</strong> (${tipoTesteIndividual}) → Posição ${pos} (${lado}) | 🌱 ${formatAnyDateToBR(dataPlantioInput)}${obs}<br>`;
       }
       html += `<br><strong>Origem:</strong> ${tipoRemessa}`;
 
@@ -587,7 +610,7 @@
 
       document.getElementById('canteiro-title').textContent = `Mapa do Canteiro ${configuracao.canteiro || ''}`;
       document.getElementById('canteiro-details').innerHTML =
-        `📅 Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'} | ` +
+        `📅 Data: ${formatAnyDateToBR(configuracao.data)} | ` +
         `🧪 Teste: ${tipoTesteDisplay} | ` +
         `📊 Total de Amostras: ${amostras.length}`;
 
@@ -603,8 +626,8 @@
         cell.className = 'sample-cell';
 
         if (amostra) {
-          const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
-          const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : null;
+          const dataTs = formatAnyDateToBR(amostra.timestamp);
+          const dataPl = amostra.dataPlantio ? formatAnyDateToBR(amostra.dataPlantio) : null;
           cell.innerHTML = `
             <strong>${amostra.codigo}</strong>
             <div class="sample-info">
@@ -639,8 +662,8 @@
       if (!amostra || typeof amostra !== 'object' || !amostra.codigo) {
         return alert('Amostra inválida.');
       }
-      const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
-      const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : '—';
+      const dataTs = formatAnyDateToBR(amostra.timestamp);
+      const dataPl = amostra.dataPlantio ? formatAnyDateToBR(amostra.dataPlantio) : '—';
       const info = `AMOSTRA: ${amostra.codigo}
 POSIÇÃO: ${amostra.posicao} (${amostra.lado})
 ORIGEM: ${amostra.tipoRemessa || 'Não definido'}
@@ -649,13 +672,22 @@ DATA PLANTIO: ${dataPl}
 
 O que deseja fazer?`;
 
-      if (confirm(`${info}\n\n🔷 OPÇÃO 1: EDITAR POSIÇÃO\nOK = editar | Cancelar = próxima opção`)) {
+      if (confirm(`${info}
+
+🔷 OPÇÃO 1: EDITAR POSIÇÃO
+OK = editar | Cancelar = próxima opção`)) {
         return editarPosicaoAmostra(amostra);
       }
-      if (confirm(`${info}\n\n🔷 OPÇÃO 2: LIMPAR POSIÇÃO\nOK = limpar | Cancelar = próxima opção`)) {
+      if (confirm(`${info}
+
+🔷 OPÇÃO 2: LIMPAR POSIÇÃO
+OK = limpar | Cancelar = próxima opção`)) {
         return limparPosicaoAmostra(amostra);
       }
-      if (confirm(`${info}\n\n🔷 OPÇÃO 3: REMOVER AMOSTRA\nOK = remover | Cancelar = sair`)) {
+      if (confirm(`${info}
+
+🔷 OPÇÃO 3: REMOVER AMOSTRA
+OK = remover | Cancelar = sair`)) {
         return removerAmostra(amostra);
       }
     }
@@ -909,7 +941,7 @@ Todos os dados serão perdidos!`,
           : (tiposUnicos.length === 1 ? tiposUnicos[0] : `${tiposUnicos.join(', ')} (Múltiplos)`);
 
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
-        pdf.text(`Data: ${configuracao.data ? new Date(configuracao.data).toLocaleDateString('pt-BR') : '—'}`, MARGEM, y);
+        pdf.text(`Data: ${formatAnyDateToBR(configuracao.data)}`, MARGEM, y);
         pdf.text(`Teste: ${tipoTesteDisplay}`, MARGEM + 60, y);
         pdf.text(`Amostras: ${amostras.length}`, MARGEM + 130, y); y += 8;
         pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, MARGEM, y); y += 8;
@@ -1001,8 +1033,8 @@ Todos os dados serão perdidos!`,
     // Linhas com quebra automática para cada célula (primeira é o código)
     function buildCellLines(pdf, amostra, maxWidth) {
       if (!amostra) return ['Vazio'];
-      const dataTs = amostra.timestamp ? new Date(amostra.timestamp).toLocaleDateString('pt-BR') : '—';
-      const dataPl = amostra.dataPlantio ? new Date(amostra.dataPlantio).toLocaleDateString('pt-BR') : null;
+      const dataTs = formatAnyDateToBR(amostra.timestamp);
+      const dataPl = amostra.dataPlantio ? formatAnyDateToBR(amostra.dataPlantio) : null;
 
       const lines = [String(amostra.codigo || '')];
 
